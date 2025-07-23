@@ -1,5 +1,8 @@
 package com.nayabjalal.calculator.ui;
 
+import java.awt.event.KeyAdapter;
+import java.awt.event.KeyEvent;
+
 import java.awt.Color;
 import java.awt.Cursor;
 import java.awt.Font;
@@ -17,6 +20,7 @@ import com.nayabjalal.calculator.theme.properties.Theme;
 import static com.nayabjalal.calculator.util.ColorUtil.hex2Color;
 
 public class CalculatorUI {
+
 
     private static final String FONT_NAME = "Comic Sans MS";
     private static final String DOUBLE_OR_NUMBER_REGEX = "([-]?\\d+[.]\\d*)|(\\d+)|(-\\d+)";
@@ -82,6 +86,12 @@ public class CalculatorUI {
         window.setResizable(false);
         window.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
         window.setVisible(true);
+
+        initThemeSelector();
+        initKeyboardSupport();
+
+        window.setLayout(null);
+
     }
 
     public double calculate(double firstNumber, double secondNumber, char operator) {
@@ -585,5 +595,72 @@ public class CalculatorUI {
         btnLog.setBackground(hex2Color(theme.getOperatorBackground()));
         btnPower.setBackground(hex2Color(theme.getOperatorBackground()));
         btnEqual.setBackground(hex2Color(theme.getBtnEqualBackground()));
+    }
+    private void initKeyboardSupport() {
+        window.addKeyListener(new KeyAdapter() {
+            @Override
+            public void keyPressed(KeyEvent e) {
+                char key = e.getKeyChar();
+                int keyCode = e.getKeyCode();
+
+                // Handle number keys
+                if (Character.isDigit(key)) {
+                    handleNumberInput(key);
+                }
+                // Handle operators
+                else if (key == '+') {
+                    btnAdd.doClick();
+                }
+                else if (key == '-') {
+                    btnSub.doClick();
+                }
+                else if (key == '*') {
+                    btnMul.doClick();
+                }
+                else if (key == '/') {
+                    btnDiv.doClick();
+                }
+                else if (key == '%') {
+                    btnMod.doClick();
+                }
+                else if (key == '=' || keyCode == KeyEvent.VK_ENTER) {
+                    btnEqual.doClick();
+                }
+                else if (key == '.') {
+                    btnPoint.doClick();
+                }
+                else if (keyCode == KeyEvent.VK_BACK_SPACE) {
+                    btnBack.doClick();
+                }
+                else if (keyCode == KeyEvent.VK_DELETE || key == 'c' || key == 'C') {
+                    btnC.doClick();
+                }
+                else if (key == 'r' || key == 'R') {
+                    if (btnRoot.isVisible()) {
+                        btnRoot.doClick();
+                    }
+                }
+            }
+        });
+
+        // Make sure the window can receive key events
+        window.setFocusable(true);
+        window.requestFocus();
+    }
+
+    // Add this helper method
+    private void handleNumberInput(char digit) {
+        switch (digit) {
+            case '0': btn0.doClick(); break;
+            case '1': btn1.doClick(); break;
+            case '2': btn2.doClick(); break;
+            case '3': btn3.doClick(); break;
+            case '4': btn4.doClick(); break;
+            case '5': btn5.doClick(); break;
+            case '6': btn6.doClick(); break;
+            case '7': btn7.doClick(); break;
+            case '8': btn8.doClick(); break;
+            case '9': btn9.doClick(); break;
+        }
     }
 }
