@@ -1,14 +1,12 @@
 package com.nayabjalal.calculator.ui;
 
-import java.awt.event.KeyAdapter;
-import java.awt.event.KeyEvent;
-
 import java.awt.Color;
 import java.awt.Cursor;
 import java.awt.Font;
 import java.awt.event.ItemEvent;
+import java.awt.event.KeyAdapter;
+import java.awt.event.KeyEvent;
 import java.util.Map;
-import java.util.regex.Pattern;
 
 import javax.swing.JButton;
 import javax.swing.JComboBox;
@@ -17,13 +15,12 @@ import javax.swing.JTextField;
 
 import com.nayabjalal.calculator.theme.ThemeLoader;
 import com.nayabjalal.calculator.theme.properties.Theme;
+import com.nayabjalal.calculator.util.InputValidator;
 import static com.nayabjalal.calculator.util.ColorUtil.hex2Color;
 
 public class CalculatorUI {
 
-
     private static final String FONT_NAME = "Comic Sans MS";
-    private static final String DOUBLE_OR_NUMBER_REGEX = "([-]?\\d+[.]\\d*)|(\\d+)|(-\\d+)";
     private static final String APPLICATION_TITLE = "Calculator";
     private static final int WINDOW_WIDTH = 410;
     private static final int WINDOW_HEIGHT = 600;
@@ -60,8 +57,8 @@ public class CalculatorUI {
     private JButton btnLog;
 
     private char selectedOperator = ' ';
-    private boolean go = true; // For calculate with Opt != (=)
-    private boolean addToDisplay = true; // Connect numbers in display
+    private boolean go = true;
+    private boolean addToDisplay = true;
     private double typedValue = 0;
 
     private final Map<String, Theme> themesMap;
@@ -79,37 +76,132 @@ public class CalculatorUI {
         initInputScreen(columns, rows);
         initButtons(columns, rows);
         initCalculatorTypeSelector();
-
         initThemeSelector();
+        initKeyboardSupport();
 
         window.setLayout(null);
         window.setResizable(false);
         window.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
         window.setVisible(true);
-
-        initThemeSelector();
-        initKeyboardSupport();
-
-        window.setLayout(null);
-
     }
 
     public double calculate(double firstNumber, double secondNumber, char operator) {
-        switch (operator) {
-            case '+':
-                return firstNumber + secondNumber;
-            case '-':
-                return firstNumber - secondNumber;
-            case '*':
-                return firstNumber * secondNumber;
-            case '/':
-                return firstNumber / secondNumber;
-            case '%':
-                return firstNumber % secondNumber;
-            case '^':
-                return Math.pow(firstNumber, secondNumber);
-            default:
-                return secondNumber;
+        try {
+            switch (operator) {
+                case '+':
+                    return firstNumber + secondNumber;
+                case '-':
+                    return firstNumber - secondNumber;
+                case '*':
+                    return firstNumber * secondNumber;
+                case '/':
+                    if (secondNumber == 0) {
+                        inputScreen.setText("Error");
+                        return 0;
+                    }
+                    return firstNumber / secondNumber;
+                case '%':
+                    return firstNumber % secondNumber;
+                case '^':
+                    return Math.pow(firstNumber, secondNumber);
+                default:
+                    return secondNumber;
+            }
+        } catch (ArithmeticException e) {
+            inputScreen.setText("Error");
+            return 0;
+        }
+    }
+
+    private void initKeyboardSupport() {
+        window.addKeyListener(new KeyAdapter() {
+            @Override
+            public void keyPressed(KeyEvent e) {
+                char key = e.getKeyChar();
+                int keyCode = e.getKeyCode();
+
+                if (Character.isDigit(key)) {
+                    handleNumberInput(key);
+                }
+                else if (key == '+') {
+                    btnAdd.doClick();
+                }
+                else if (key == '-') {
+                    btnSub.doClick();
+                }
+                else if (key == '*') {
+                    btnMul.doClick();
+                }
+                else if (key == '/') {
+                    btnDiv.doClick();
+                }
+                else if (key == '%') {
+                    btnMod.doClick();
+                }
+                else if (key == '=' || keyCode == KeyEvent.VK_ENTER) {
+                    btnEqual.doClick();
+                }
+                else if (key == '.') {
+                    btnPoint.doClick();
+                }
+                else if (keyCode == KeyEvent.VK_BACK_SPACE) {
+                    btnBack.doClick();
+                }
+                else if (keyCode == KeyEvent.VK_DELETE || key == 'c' || key == 'C') {
+                    btnC.doClick();
+                }
+                else if (key == 'r' || key == 'R') {
+                    if (btnRoot.isVisible()) {
+                        btnRoot.doClick();
+                    }
+                }
+            }
+        });
+
+        window.setFocusable(true);
+        window.requestFocus();
+    }
+
+    private void handleNumberInput(char digit) {
+        switch (digit) {
+            case '0': btn0.doClick(); break;
+            case '1': btn1.doClick(); break;
+            case '2': btn2.doClick(); break;
+            case '3': btn3.doClick(); break;
+            case '4': btn4.doClick(); break;
+            case '5': btn5.doClick(); break;
+            case '6': btn6.doClick(); break;
+            case '7': btn7.doClick(); break;
+            case '8': btn8.doClick(); break;
+            case '9': btn9.doClick(); break;
+        }
+    }
+
+    private void handleNumberButtonClick(String number) {
+        if (addToDisplay) {
+            if (InputValidator.isZeroOnly(inputScreen.getText())) {
+                inputScreen.setText(number);
+            } else {
+                inputScreen.setText(inputScreen.getText() + number);
+            }
+        } else {
+            inputScreen.setText(number);
+            addToDisplay = true;
+        }
+        go = true;
+    }
+
+    private void handleOperator(char operator) {
+        if (!InputValidator.isValidNumber(inputScreen.getText())) return;
+
+        if (go) {
+            typedValue = calculate(typedValue, Double.parseDouble(inputScreen.getText()), selectedOperator);
+            inputScreen.setText(InputValidator.formatResult(typedValue));
+            selectedOperator = operator;
+            go = false;
+            addToDisplay = false;
+        } else {
+            selectedOperator = operator;
         }
     }
 
@@ -184,236 +276,46 @@ public class CalculatorUI {
         });
 
         btnMod = createButton("%", columns[2], rows[1]);
-        btnMod.addActionListener(event -> {
-            if (!Pattern.matches(DOUBLE_OR_NUMBER_REGEX, inputScreen.getText()) || !go)
-                return;
-
-            typedValue = calculate(typedValue, Double.parseDouble(inputScreen.getText()), selectedOperator);
-            if (Pattern.matches("[-]?[\\d]+[.][0]*", String.valueOf(typedValue))) {
-                inputScreen.setText(String.valueOf((int) typedValue));
-            } else {
-                inputScreen.setText(String.valueOf(typedValue));
-            }
-            selectedOperator = '%';
-            go = false;
-            addToDisplay = false;
-        });
+        btnMod.addActionListener(event -> handleOperator('%'));
 
         btnDiv = createButton("/", columns[3], rows[1]);
-        btnDiv.addActionListener(event -> {
-            if (!Pattern.matches(DOUBLE_OR_NUMBER_REGEX, inputScreen.getText()))
-                return;
-
-            if (go) {
-                typedValue = calculate(typedValue, Double.parseDouble(inputScreen.getText()), selectedOperator);
-                if (Pattern.matches("[-]?[\\d]+[.][0]*", String.valueOf(typedValue))) {
-                    inputScreen.setText(String.valueOf((int) typedValue));
-                } else {
-                    inputScreen.setText(String.valueOf(typedValue));
-                }
-                selectedOperator = '/';
-                go = false;
-                addToDisplay = false;
-            } else {
-                selectedOperator = '/';
-            }
-        });
+        btnDiv.addActionListener(event -> handleOperator('/'));
 
         btn7 = createButton("7", columns[0], rows[2]);
-        btn7.addActionListener(event -> {
-            if (addToDisplay) {
-                if (Pattern.matches("[0]*", inputScreen.getText())) {
-                    inputScreen.setText("7");
-                } else {
-                    inputScreen.setText(inputScreen.getText() + "7");
-                }
-            } else {
-                inputScreen.setText("7");
-                addToDisplay = true;
-            }
-            go = true;
-        });
+        btn7.addActionListener(event -> handleNumberButtonClick("7"));
 
         btn8 = createButton("8", columns[1], rows[2]);
-        btn8.addActionListener(event -> {
-            if (addToDisplay) {
-                if (Pattern.matches("[0]*", inputScreen.getText())) {
-                    inputScreen.setText("8");
-                } else {
-                    inputScreen.setText(inputScreen.getText() + "8");
-                }
-            } else {
-                inputScreen.setText("8");
-                addToDisplay = true;
-            }
-            go = true;
-        });
+        btn8.addActionListener(event -> handleNumberButtonClick("8"));
 
         btn9 = createButton("9", columns[2], rows[2]);
-        btn9.addActionListener(event -> {
-            if (addToDisplay) {
-                if (Pattern.matches("[0]*", inputScreen.getText())) {
-                    inputScreen.setText("9");
-                } else {
-                    inputScreen.setText(inputScreen.getText() + "9");
-                }
-            } else {
-                inputScreen.setText("9");
-                addToDisplay = true;
-            }
-            go = true;
-        });
+        btn9.addActionListener(event -> handleNumberButtonClick("9"));
 
         btnMul = createButton("*", columns[3], rows[2]);
-        btnMul.addActionListener(event -> {
-            if (!Pattern.matches(DOUBLE_OR_NUMBER_REGEX, inputScreen.getText()))
-                return;
-
-            if (go) {
-                typedValue = calculate(typedValue, Double.parseDouble(inputScreen.getText()), selectedOperator);
-                if (Pattern.matches("[-]?[\\d]+[.][0]*", String.valueOf(typedValue))) {
-                    inputScreen.setText(String.valueOf((int) typedValue));
-                } else {
-                    inputScreen.setText(String.valueOf(typedValue));
-                }
-                selectedOperator = '*';
-                go = false;
-                addToDisplay = false;
-            } else {
-                selectedOperator = '*';
-            }
-        });
+        btnMul.addActionListener(event -> handleOperator('*'));
 
         btn4 = createButton("4", columns[0], rows[3]);
-        btn4.addActionListener(event -> {
-            if (addToDisplay) {
-                if (Pattern.matches("[0]*", inputScreen.getText())) {
-                    inputScreen.setText("4");
-                } else {
-                    inputScreen.setText(inputScreen.getText() + "4");
-                }
-            } else {
-                inputScreen.setText("4");
-                addToDisplay = true;
-            }
-            go = true;
-        });
+        btn4.addActionListener(event -> handleNumberButtonClick("4"));
 
         btn5 = createButton("5", columns[1], rows[3]);
-        btn5.addActionListener(event -> {
-            if (addToDisplay) {
-                if (Pattern.matches("[0]*", inputScreen.getText())) {
-                    inputScreen.setText("5");
-                } else {
-                    inputScreen.setText(inputScreen.getText() + "5");
-                }
-            } else {
-                inputScreen.setText("5");
-                addToDisplay = true;
-            }
-            go = true;
-        });
+        btn5.addActionListener(event -> handleNumberButtonClick("5"));
 
         btn6 = createButton("6", columns[2], rows[3]);
-        btn6.addActionListener(event -> {
-            if (addToDisplay) {
-                if (Pattern.matches("[0]*", inputScreen.getText())) {
-                    inputScreen.setText("6");
-                } else {
-                    inputScreen.setText(inputScreen.getText() + "6");
-                }
-            } else {
-                inputScreen.setText("6");
-                addToDisplay = true;
-            }
-            go = true;
-        });
+        btn6.addActionListener(event -> handleNumberButtonClick("6"));
 
         btnSub = createButton("-", columns[3], rows[3]);
-        btnSub.addActionListener(event -> {
-            if (!Pattern.matches(DOUBLE_OR_NUMBER_REGEX, inputScreen.getText()))
-                return;
-
-            if (go) {
-                typedValue = calculate(typedValue, Double.parseDouble(inputScreen.getText()), selectedOperator);
-                if (Pattern.matches("[-]?[\\d]+[.][0]*", String.valueOf(typedValue))) {
-                    inputScreen.setText(String.valueOf((int) typedValue));
-                } else {
-                    inputScreen.setText(String.valueOf(typedValue));
-                }
-
-                selectedOperator = '-';
-                go = false;
-                addToDisplay = false;
-            } else {
-                selectedOperator = '-';
-            }
-        });
+        btnSub.addActionListener(event -> handleOperator('-'));
 
         btn1 = createButton("1", columns[0], rows[4]);
-        btn1.addActionListener(event -> {
-            if (addToDisplay) {
-                if (Pattern.matches("[0]*", inputScreen.getText())) {
-                    inputScreen.setText("1");
-                } else {
-                    inputScreen.setText(inputScreen.getText() + "1");
-                }
-            } else {
-                inputScreen.setText("1");
-                addToDisplay = true;
-            }
-            go = true;
-        });
+        btn1.addActionListener(event -> handleNumberButtonClick("1"));
 
         btn2 = createButton("2", columns[1], rows[4]);
-        btn2.addActionListener(event -> {
-            if (addToDisplay) {
-                if (Pattern.matches("[0]*", inputScreen.getText())) {
-                    inputScreen.setText("2");
-                } else {
-                    inputScreen.setText(inputScreen.getText() + "2");
-                }
-            } else {
-                inputScreen.setText("2");
-                addToDisplay = true;
-            }
-            go = true;
-        });
+        btn2.addActionListener(event -> handleNumberButtonClick("2"));
 
         btn3 = createButton("3", columns[2], rows[4]);
-        btn3.addActionListener(event -> {
-            if (addToDisplay) {
-                if (Pattern.matches("[0]*", inputScreen.getText())) {
-                    inputScreen.setText("3");
-                } else {
-                    inputScreen.setText(inputScreen.getText() + "3");
-                }
-            } else {
-                inputScreen.setText("3");
-                addToDisplay = true;
-            }
-            go = true;
-        });
+        btn3.addActionListener(event -> handleNumberButtonClick("3"));
 
         btnAdd = createButton("+", columns[3], rows[4]);
-        btnAdd.addActionListener(event -> {
-            if (!Pattern.matches(DOUBLE_OR_NUMBER_REGEX, inputScreen.getText()))
-                return;
-
-            if (go) {
-                typedValue = calculate(typedValue, Double.parseDouble(inputScreen.getText()), selectedOperator);
-                if (Pattern.matches("[-]?[\\d]+[.][0]*", String.valueOf(typedValue))) {
-                    inputScreen.setText(String.valueOf((int) typedValue));
-                } else {
-                    inputScreen.setText(String.valueOf(typedValue));
-                }
-                selectedOperator = '+';
-                go = false;
-                addToDisplay = false;
-            } else {
-                selectedOperator = '+';
-            }
-        });
+        btnAdd.addActionListener(event -> handleOperator('+'));
 
         btnPoint = createButton(".", columns[0], rows[5]);
         btnPoint.addActionListener(event -> {
@@ -429,32 +331,16 @@ public class CalculatorUI {
         });
 
         btn0 = createButton("0", columns[1], rows[5]);
-        btn0.addActionListener(event -> {
-            if (addToDisplay) {
-                if (Pattern.matches("[0]*", inputScreen.getText())) {
-                    inputScreen.setText("0");
-                } else {
-                    inputScreen.setText(inputScreen.getText() + "0");
-                }
-            } else {
-                inputScreen.setText("0");
-                addToDisplay = true;
-            }
-            go = true;
-        });
+        btn0.addActionListener(event -> handleNumberButtonClick("0"));
 
         btnEqual = createButton("=", columns[2], rows[5]);
         btnEqual.addActionListener(event -> {
-            if (!Pattern.matches(DOUBLE_OR_NUMBER_REGEX, inputScreen.getText()))
+            if (!InputValidator.isValidNumber(inputScreen.getText()))
                 return;
 
             if (go) {
                 typedValue = calculate(typedValue, Double.parseDouble(inputScreen.getText()), selectedOperator);
-                if (Pattern.matches("[-]?[\\d]+[.][0]*", String.valueOf(typedValue))) {
-                    inputScreen.setText(String.valueOf((int) typedValue));
-                } else {
-                    inputScreen.setText(String.valueOf(typedValue));
-                }
+                inputScreen.setText(InputValidator.formatResult(typedValue));
                 selectedOperator = '=';
                 addToDisplay = false;
             }
@@ -463,16 +349,12 @@ public class CalculatorUI {
 
         btnRoot = createButton("√", columns[4], rows[1]);
         btnRoot.addActionListener(event -> {
-            if (!Pattern.matches(DOUBLE_OR_NUMBER_REGEX, inputScreen.getText()))
+            if (!InputValidator.isValidNumber(inputScreen.getText()))
                 return;
 
             if (go) {
                 typedValue = Math.sqrt(Double.parseDouble(inputScreen.getText()));
-                if (Pattern.matches("[-]?[\\d]+[.][0]*", String.valueOf(typedValue))) {
-                    inputScreen.setText(String.valueOf((int) typedValue));
-                } else {
-                    inputScreen.setText(String.valueOf(typedValue));
-                }
+                inputScreen.setText(InputValidator.formatResult(typedValue));
                 selectedOperator = '√';
                 addToDisplay = false;
             }
@@ -480,39 +362,18 @@ public class CalculatorUI {
         btnRoot.setVisible(false);
 
         btnPower = createButton("pow", columns[4], rows[2]);
-        btnPower.addActionListener(event -> {
-            if (!Pattern.matches(DOUBLE_OR_NUMBER_REGEX, inputScreen.getText()))
-                return;
-
-            if (go) {
-                typedValue = calculate(typedValue, Double.parseDouble(inputScreen.getText()), selectedOperator);
-                if (Pattern.matches("[-]?[\\d]+[.][0]*", String.valueOf(typedValue))) {
-                    inputScreen.setText(String.valueOf((int) typedValue));
-                } else {
-                    inputScreen.setText(String.valueOf(typedValue));
-                }
-                selectedOperator = '^';
-                go = false;
-                addToDisplay = false;
-            } else {
-                selectedOperator = '^';
-            }
-        });
+        btnPower.addActionListener(event -> handleOperator('^'));
         btnPower.setFont(new Font("Comic Sans MS", Font.PLAIN, 24));
         btnPower.setVisible(false);
 
         btnLog = createButton("ln", columns[4], rows[3]);
         btnLog.addActionListener(event -> {
-            if (!Pattern.matches(DOUBLE_OR_NUMBER_REGEX, inputScreen.getText()))
+            if (!InputValidator.isValidNumber(inputScreen.getText()))
                 return;
 
             if (go) {
                 typedValue = Math.log(Double.parseDouble(inputScreen.getText()));
-                if (Pattern.matches("[-]?[\\d]+[.][0]*", String.valueOf(typedValue))) {
-                    inputScreen.setText(String.valueOf((int) typedValue));
-                } else {
-                    inputScreen.setText(String.valueOf(typedValue));
-                }
+                inputScreen.setText(InputValidator.formatResult(typedValue));
                 selectedOperator = 'l';
                 addToDisplay = false;
             }
@@ -595,72 +456,5 @@ public class CalculatorUI {
         btnLog.setBackground(hex2Color(theme.getOperatorBackground()));
         btnPower.setBackground(hex2Color(theme.getOperatorBackground()));
         btnEqual.setBackground(hex2Color(theme.getBtnEqualBackground()));
-    }
-    private void initKeyboardSupport() {
-        window.addKeyListener(new KeyAdapter() {
-            @Override
-            public void keyPressed(KeyEvent e) {
-                char key = e.getKeyChar();
-                int keyCode = e.getKeyCode();
-
-                // Handle number keys
-                if (Character.isDigit(key)) {
-                    handleNumberInput(key);
-                }
-                // Handle operators
-                else if (key == '+') {
-                    btnAdd.doClick();
-                }
-                else if (key == '-') {
-                    btnSub.doClick();
-                }
-                else if (key == '*') {
-                    btnMul.doClick();
-                }
-                else if (key == '/') {
-                    btnDiv.doClick();
-                }
-                else if (key == '%') {
-                    btnMod.doClick();
-                }
-                else if (key == '=' || keyCode == KeyEvent.VK_ENTER) {
-                    btnEqual.doClick();
-                }
-                else if (key == '.') {
-                    btnPoint.doClick();
-                }
-                else if (keyCode == KeyEvent.VK_BACK_SPACE) {
-                    btnBack.doClick();
-                }
-                else if (keyCode == KeyEvent.VK_DELETE || key == 'c' || key == 'C') {
-                    btnC.doClick();
-                }
-                else if (key == 'r' || key == 'R') {
-                    if (btnRoot.isVisible()) {
-                        btnRoot.doClick();
-                    }
-                }
-            }
-        });
-
-        // Make sure the window can receive key events
-        window.setFocusable(true);
-        window.requestFocus();
-    }
-
-    // Add this helper method
-    private void handleNumberInput(char digit) {
-        switch (digit) {
-            case '0': btn0.doClick(); break;
-            case '1': btn1.doClick(); break;
-            case '2': btn2.doClick(); break;
-            case '3': btn3.doClick(); break;
-            case '4': btn4.doClick(); break;
-            case '5': btn5.doClick(); break;
-            case '6': btn6.doClick(); break;
-            case '7': btn7.doClick(); break;
-            case '8': btn8.doClick(); break;
-            case '9': btn9.doClick(); break;
-        }
     }
 }
