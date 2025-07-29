@@ -6,7 +6,16 @@ import java.awt.Font;
 import java.awt.event.ItemEvent;
 import java.awt.event.KeyAdapter;
 import java.awt.event.KeyEvent;
+import java.util.List;
 import java.util.Map;
+
+import com.nayabjalal.calculator.config.AppConfig;
+import com.nayabjalal.calculator.exception.CalculatorException;
+import com.nayabjalal.calculator.history.CalculationHistory;
+import com.nayabjalal.calculator.util.ExpressionEvaluator;
+import javax.swing.*;
+import java.awt.event.ActionEvent;
+import java.awt.event.ActionListener;
 
 import javax.swing.JButton;
 import javax.swing.JComboBox;
@@ -74,8 +83,9 @@ public class CalculatorUI {
         int[] rows = {MARGIN_Y, MARGIN_Y + 100, MARGIN_Y + 100 + 80, MARGIN_Y + 100 + 80 * 2, MARGIN_Y + 100 + 80 * 3, MARGIN_Y + 100 + 80 * 4};
 
         initInputScreen(columns, rows);
-        initButtons(columns, rows);
         initCalculatorTypeSelector();
+        initButtons(columns, rows);
+
         initThemeSelector();
         initKeyboardSupport();
 
@@ -88,26 +98,25 @@ public class CalculatorUI {
     public double calculate(double firstNumber, double secondNumber, char operator) {
         try {
             switch (operator) {
-                case '+':
-                    return firstNumber + secondNumber;
-                case '-':
-                    return firstNumber - secondNumber;
-                case '*':
-                    return firstNumber * secondNumber;
+                case '+': return firstNumber + secondNumber;
+                case '-': return firstNumber - secondNumber;
+                case '*': return firstNumber * secondNumber;
                 case '/':
                     if (secondNumber == 0) {
-                        inputScreen.setText("Error");
-                        return 0;
+                        throw new CalculatorException(
+                                CalculatorException.ErrorType.DIVISION_BY_ZERO,
+                                "Cannot divide by zero"
+                        );
                     }
                     return firstNumber / secondNumber;
-                case '%':
-                    return firstNumber % secondNumber;
-                case '^':
-                    return Math.pow(firstNumber, secondNumber);
-                default:
-                    return secondNumber;
+                case '%': return firstNumber % secondNumber;
+                case '^': return Math.pow(firstNumber, secondNumber);
+                default: return secondNumber;
             }
-        } catch (ArithmeticException e) {
+        } catch (CalculatorException e) {
+            inputScreen.setText(e.getLocalizedMessage());
+            return 0;
+        } catch (Exception e) {
             inputScreen.setText("Error");
             return 0;
         }
@@ -252,6 +261,59 @@ public class CalculatorUI {
             }
         });
     }
+    private void showHistoryDialog() {
+        CalculationHistory history = CalculationHistory.getInstance();
+        List<CalculationHistory.CalculationEntry> recent = history.getRecentHistory(10);
+
+        if (recent.isEmpty()) {
+            JOptionPane.showMessageDialog(window, "No calculation history available.",
+                    "History", JOptionPane.INFORMATION_MESSAGE);
+            return;
+        }
+
+        StringBuilder historyText = new StringBuilder("Recent Calculations:\n\n");
+        for (CalculationHistory.CalculationEntry entry : recent) {
+            historyText.append(entry.toString()).append("\n");
+        }
+
+        JTextArea textArea = new JTextArea(historyText.toString());
+        textArea.setEditable(false);
+        textArea.setFont(new Font(Font.MONOSPACED, Font.PLAIN, 12));
+
+        JScrollPane scrollPane = new JScrollPane(textArea);
+        scrollPane.setPreferredSize(new java.awt.Dimension(400, 300));
+
+        JOptionPane.showMessageDialog(window, scrollPane, "Calculation History",
+                JOptionPane.INFORMATION_MESSAGE);
+    }
+
+    private void handleAdvancedCalculation() {
+        String expression = JOptionPane.showInputDialog(window,
+                "Enter expression (e.g., 2+3*4, (5+3)/2):",
+                "Advanced Calculator",
+                JOptionPane.QUESTION_MESSAGE);
+
+        if (expression != null && !expression.trim().isEmpty()) {
+            try {
+                double result = ExpressionEvaluator.evaluateExpression(expression);
+                String resultStr = InputValidator.formatResult(result);
+
+                inputScreen.setText(resultStr);
+                CalculationHistory.getInstance().addCalculation(expression, resultStr);
+
+                // Reset calculator state
+                typedValue = result;
+                selectedOperator = '=';
+                addToDisplay = false;
+
+            } catch (CalculatorException e) {
+                JOptionPane.showMessageDialog(window,
+                        e.getLocalizedMessage(),
+                        "Calculation Error",
+                        JOptionPane.ERROR_MESSAGE);
+            }
+        }
+    }
 
     private void initButtons(int[] columns, int[] rows) {
         btnC = createButton("C", columns[0], rows[1]);
@@ -379,6 +441,23 @@ public class CalculatorUI {
             }
         });
         btnLog.setVisible(false);
+
+        JButton btnHistory = createButton("Hist", columns[4], rows[4]);
+        btnHistory.addActionListener(event -> showHistoryDialog());
+        btnHistory.setFont(new Font("Comic Sans MS", Font.PLAIN, 20));
+        btnHistory.setVisible(false);
+
+        JButton btnAdvanced = createButton("Adv", columns[4], rows[5]);
+        btnAdvanced.addActionListener(event -> handleAdvancedCalculation());
+        btnAdvanced.setFont(new Font("Comic Sans MS", Font.PLAIN, 20));
+        btnAdvanced.setVisible(false);
+
+        String selectedItem;
+        selectedItem = (String) comboCalculatorType.getSelectedItem();
+        if ("Scientific".equals(selectedItem)) {
+            btnHistory.setVisible(true);
+            btnAdvanced.setVisible(true);
+        }
     }
 
     private JComboBox<String> createComboBox(String[] items, int x, int y, String toolTip) {
